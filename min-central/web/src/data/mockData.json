@@ -1,0 +1,280 @@
+{
+  "members": [
+    {
+      "id": 1,
+      "nick": "s0viet-chief",
+      "cargo": "lider",
+      "ministry": "",
+      "disponivel": true,
+      "modLevel": 5
+    },
+    {
+      "id": 2,
+      "nick": "Welling!",
+      "cargo": "vice",
+      "ministry": "",
+      "disponivel": true,
+      "modLevel": 4
+    },
+    {
+      "id": 3,
+      "nick": "???JUKA",
+      "cargo": "vice",
+      "ministry": "",
+      "disponivel": true,
+      "modLevel": 4
+    },
+    {
+      "id": 4,
+      "nick": "graia1.",
+      "cargo": "ministro",
+      "ministry": "financas",
+      "disponivel": true,
+      "modLevel": 3
+    },
+    {
+      "id": 5,
+      "nick": "Letyz",
+      "cargo": "ministro",
+      "ministry": "financas",
+      "disponivel": true,
+      "modLevel": 3
+    },
+    {
+      "id": 6,
+      "nick": "-:Lisboa",
+      "cargo": "ministro",
+      "ministry": "administracao",
+      "disponivel": true,
+      "modLevel": 3
+    },
+    {
+      "id": 7,
+      "nick": "karambi",
+      "cargo": "ministro",
+      "ministry": "administracao",
+      "disponivel": true,
+      "modLevel": 3
+    },
+    {
+      "id": 8,
+      "nick": ",Toyx",
+      "cargo": "ministro",
+      "ministry": "contabilidade",
+      "disponivel": true,
+      "modLevel": 3
+    },
+    {
+      "id": 9,
+      "nick": "Annehatfield1",
+      "cargo": "estagiario",
+      "ministry": "financas",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 10,
+      "nick": "-Polz-",
+      "cargo": "estagiario",
+      "ministry": "financas",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 11,
+      "nick": "SrDollynho",
+      "cargo": "estagiario",
+      "ministry": "administracao",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 12,
+      "nick": "Sir.Sirius",
+      "cargo": "estagiario",
+      "ministry": "administracao",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 13,
+      "nick": "Wallzt",
+      "cargo": "estagiario",
+      "ministry": "contabilidade",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 14,
+      "nick": "Crebes",
+      "cargo": "estagiario",
+      "ministry": "contabilidade",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 15,
+      "nick": "tchaumateu21",
+      "cargo": "estagiario",
+      "ministry": "documentacao",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 16,
+      "nick": "Crowfly,",
+      "cargo": "estagiario",
+      "ministry": "rh",
+      "disponivel": true,
+      "modLevel": 1
+    },
+    {
+      "id": 17,
+      "nick": "zZq",
+      "cargo": "estagiario",
+      "ministry": "seguranca",
+      "disponivel": true,
+      "modLevel": 1
+    }
+  ],
+  "funcoes": [
+    {
+      "id": 1,
+      "nome": "Função Finanças 1",
+      "ministry": "financas",
+      "nivel": "ministro",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [0]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "nome": "Função Finanças 2",
+      "ministry": "financas",
+      "nivel": "estagiario",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [1, 3]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "nome": "Função Administração 1",
+      "ministry": "administracao",
+      "nivel": "ministro",
+      "tipo": "mensal",
+      "diasMes": [1, 15]
+    },
+    {
+      "id": 4,
+      "nome": "Função Administração 2",
+      "ministry": "administracao",
+      "nivel": "estagiario",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [2, 4]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "nome": "Função Contabilidade 1",
+      "ministry": "contabilidade",
+      "nivel": "ministro",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [5]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "nome": "Função Contabilidade 2",
+      "ministry": "contabilidade",
+      "nivel": "estagiario",
+      "tipo": "mensal",
+      "diasMes": [10, 25]
+    },
+    {
+      "id": 7,
+      "nome": "Função Documentação 1",
+      "ministry": "documentacao",
+      "nivel": "estagiario",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [3]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "nome": "Função RH 1",
+      "ministry": "rh",
+      "nivel": "estagiario",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [4]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "nome": "Função Segurança 1",
+      "ministry": "seguranca",
+      "nivel": "estagiario",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 0,
+          "dias": [6]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "nome": "Função Finanças 3",
+      "ministry": "financas",
+      "nivel": "ministro",
+      "tipo": "mensal",
+      "diasMes": [5, 20]
+    },
+    {
+      "id": 11,
+      "nome": "Função Administração 3",
+      "ministry": "administracao",
+      "nivel": "ministro",
+      "tipo": "semanal",
+      "semanas": [
+        {
+          "semana": 1,
+          "dias": [0]
+        }
+      ]
+    }
+  ],
+  "escalas": [],
+  "config": {
+    "conclusaoSemComp": false,
+    "notificarFaltas": true,
+    "manualMinistro": false,
+    "themeColor": "#3b82f6",
+    "mesReferencia": 5,
+    "anoReferencia": 2026,
+    "semanasAtivas": [1, 2, 3, 4]
+  }
+}
