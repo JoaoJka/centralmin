@@ -1,14 +1,43 @@
 const { jsonResponse, errorResponse, handleOptions, verifyPassword, signJWT, findByField } = require('./utils');
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
-  if (event.httpMethod !== 'POST') return errorResponse('Method not allowed', 405);
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
 
   try {
     const { nick, senha } = JSON.parse(event.body);
 
     if (!nick || !senha) {
-      return errorResponse('Nick e senha são obrigatórios', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Nick e senha são obrigatórios' })
+      };
     }
 
     // Busca usuário aprovado
@@ -17,15 +46,36 @@ exports.handler = async (event, context) => {
       // Verifica se está pendente
       const pendente = await findByField('pendentes', 'nick', nick);
       if (pendente) {
-        return errorResponse('Cadastro ainda não aprovado. Aguarde.', 403);
+        return {
+          statusCode: 403,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Cadastro ainda não aprovado. Aguarde.' })
+        };
       }
-      return errorResponse('Nick ou senha incorretos', 401);
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Nick ou senha incorretos' })
+      };
     }
 
     // Verifica senha
     const senhaValida = await verifyPassword(senha, usuario.senhaHash);
     if (!senhaValida) {
-      return errorResponse('Nick ou senha incorretos', 401);
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Nick ou senha incorretos' })
+      };
     }
 
     // Gera JWT
@@ -35,17 +85,31 @@ exports.handler = async (event, context) => {
       cargo: usuario.cargo
     });
 
-    return jsonResponse({
-      sucesso: true,
-      token,
-      usuario: {
-        nick: usuario.nick,
-        cargo: usuario.cargo,
-        status: usuario.status
-      }
-    });
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sucesso: true,
+        token,
+        usuario: {
+          nick: usuario.nick,
+          cargo: usuario.cargo,
+          status: usuario.status
+        }
+      })
+    };
 
   } catch (err) {
-    return errorResponse(err.message, 500);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };

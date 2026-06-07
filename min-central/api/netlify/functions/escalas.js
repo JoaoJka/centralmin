@@ -1,60 +1,139 @@
-import {
-  validarChave, listItems, createItem, updateItem, deleteItem,
-  jsonResponse, errorResponse, handleOptions, validateEscala
-} from './utils.js';
+const { validarChave, listItems, createItem, updateItem, deleteItem, jsonResponse, errorResponse, handleOptions, validateEscala, getCurrentUser } = require('./utils');
 
-export default async (req, context) => {
-  if (req.method === 'OPTIONS') return handleOptions();
-
-  const chave = req.headers.get('x-api-key') || new URL(req.url).searchParams.get('key');
-  const usuario = chave ? await validarChave(chave) : null;
-
-  if (!usuario) {
-    return errorResponse('Unauthorized', 403);
+exports.handler = async (event, context) => {
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: ''
+    };
   }
 
-  const url = new URL(req.url);
+  const usuario = await getCurrentUser(event);
+  if (!usuario) {
+    return {
+      statusCode: 401,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Não autenticado' })
+    };
+  }
+
+  const url = new URL(event.rawUrl || `https://localhost${event.path}`);
   const pathParts = url.pathname.split('/');
   const id = pathParts[pathParts.length - 1];
 
   try {
-    switch (req.method) {
+    switch (event.httpMethod) {
       case 'GET': {
         const escalas = await listItems('escalas');
-        return jsonResponse(escalas);
+        return {
+          statusCode: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(escalas)
+        };
       }
 
       case 'POST': {
-        const data = await req.json();
+        const data = JSON.parse(event.body);
         const errors = validateEscala(data);
-        if (errors) return errorResponse(errors.join(', '), 400);
+        if (errors) {
+          return {
+            statusCode: 400,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: errors.join(', ') })
+          };
+        }
 
         const newId = data.id || String(Date.now());
         const created = await createItem('escalas', { ...data, id: newId });
-        return jsonResponse(created, 201);
+        return {
+          statusCode: 201,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(created)
+        };
       }
 
       case 'PUT': {
-        const data = await req.json();
+        const data = JSON.parse(event.body);
         const updated = await updateItem('escalas', id, data);
-        if (!updated) return errorResponse('Record not found', 404);
-        return jsonResponse(updated);
+        if (!updated) {
+          return {
+            statusCode: 404,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Record not found' })
+          };
+        }
+        return {
+          statusCode: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(updated)
+        };
       }
 
       case 'DELETE': {
         const deleted = await deleteItem('escalas', id);
-        if (!deleted) return errorResponse('Record not found', 404);
-        return new Response('', { status: 204, headers: corsHeaders });
+        if (!deleted) {
+          return {
+            statusCode: 404,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Record not found' })
+          };
+        }
+        return {
+          statusCode: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: ''
+        };
       }
 
       default:
-        return errorResponse('Method not allowed', 405);
+        return {
+          statusCode: 405,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Method not allowed' })
+        };
     }
   } catch (err) {
-    return errorResponse(err.message, 500);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: err.message })
+    };
   }
-};
-
-export const config = {
-  path: ['/api/escalas', '/api/escalas/*']
 };

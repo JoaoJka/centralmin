@@ -1,39 +1,76 @@
-import { validarChave, fbGet, fbPatch, jsonResponse, errorResponse, handleOptions, podeAcessarAdminBackend } from './utils.js';
+const { validarChave, fbGet, fbPatch, jsonResponse, errorResponse, handleOptions, getCurrentUser } = require('./utils');
 
-export default async (req, context) => {
-  if (req.method === 'OPTIONS') return handleOptions();
-
-  const chave = req.headers.get('x-api-key') || new URL(req.url).searchParams.get('key');
-  const usuario = chave ? await validarChave(chave) : null;
-
-  if (!usuario) {
-    return errorResponse('Unauthorized', 403);
+exports.handler = async (event, context) => {
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: ''
+    };
   }
 
-  const isAdmin = podeAcessarAdminBackend(usuario.cargo);
+  const usuario = await getCurrentUser(event);
+  if (!usuario) {
+    return {
+      statusCode: 401,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Não autenticado' })
+    };
+  }
 
   try {
-    if (req.method === 'GET') {
+    if (event.httpMethod === 'GET') {
       const data = await fbGet('config/main');
-      return jsonResponse(data || {});
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data || {})
+      };
     }
 
-    if (req.method === 'PUT') {
-      if (!isAdmin) {
-        return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem alterar configurações.', 403);
-      }
-      const data = await req.json();
+    if (event.httpMethod === 'PUT') {
+      const data = JSON.parse(event.body);
       await fbPatch('config/main', data);
       const updated = await fbGet('config/main');
-      return jsonResponse(updated || {});
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updated || {})
+      };
     }
 
-    return errorResponse('Method not allowed', 405);
-  } catch (err) {
-    return errorResponse(err.message, 500);
-  }
-};
+    return {
+      statusCode: 405,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
 
-export const config = {
-  path: ['/api/config']
+  } catch (err) {
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: err.message })
+    };
+  }
 };

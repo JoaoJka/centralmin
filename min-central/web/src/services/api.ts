@@ -1,18 +1,16 @@
 // ============================================
-// API - Cliente HTTP para Netlify Functions
+// API - Cliente HTTP para Netlify Functions (React/TS)
 // ============================================
-
-import { getApiKey, logout } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // ---------- CLIENTE HTTP BASE ----------
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const chave = getApiKey();
+  const token = sessionStorage.getItem('auth_token');
 
-  if (!chave || chave === 'convidado') {
-    throw new Error('Não autenticado. Faça login pelo fórum.');
+  if (!token) {
+    throw new Error('Não autenticado. Faça login.');
   }
 
   const url = `${API_BASE}/${endpoint}`;
@@ -21,13 +19,14 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     ...options,
     headers: {
       ...options.headers,
-      'X-API-Key': chave,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
   });
 
   if (response.status === 401 || response.status === 403) {
-    logout();
+    sessionStorage.removeItem('auth_token');
+    window.location.href = '/';
     throw new Error('Sessão expirada. Faça login novamente.');
   }
 
@@ -78,7 +77,7 @@ export const apiConfig = {
 // ---------- AUTH ----------
 
 export const apiAuth = {
-  validate: () => fetchAPI('auth'),
+  validate: () => fetchAPI('auth/me'),
 };
 
 // ============================================

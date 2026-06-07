@@ -1,43 +1,102 @@
 const { jsonResponse, errorResponse, handleOptions, hashPassword, verifyHabboMotto, fbPut, findByField } = require('./utils');
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
-  if (event.httpMethod !== 'POST') return errorResponse('Method not allowed', 405);
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
 
   try {
     const { nick, codigo, senha } = JSON.parse(event.body);
 
     if (!nick || !codigo || !senha) {
-      return errorResponse('Nick, código e senha são obrigatórios', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Nick, código e senha são obrigatórios' })
+      };
     }
 
     if (senha.length < 6) {
-      return errorResponse('Senha deve ter no mínimo 6 caracteres', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Senha deve ter no mínimo 6 caracteres' })
+      };
     }
 
     // Verifica se já existe usuário aprovado com esse nick
     const existente = await findByField('usuarios', 'nick', nick);
     if (existente) {
-      return errorResponse('Nick já cadastrado. Faça login.', 409);
+      return {
+        statusCode: 409,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Nick já cadastrado. Faça login.' })
+      };
     }
 
     // Verifica se já existe pendente com esse nick
     const pendentes = await findByField('pendentes', 'nick', nick);
     if (pendentes) {
-      return errorResponse('Cadastro já enviado. Aguarde aprovação.', 409);
+      return {
+        statusCode: 409,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Cadastro já enviado. Aguarde aprovação.' })
+      };
     }
 
     // Verifica código na missão do Habbo
     const mottoValido = await verifyHabboMotto(nick, codigo);
     if (!mottoValido) {
-      return errorResponse('Código não encontrado na missão do Habbo. Verifique e tente novamente.', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Código não encontrado na missão do Habbo. Verifique e tente novamente.' })
+      };
     }
 
     // Cria hash da senha
     const senhaHash = await hashPassword(senha);
 
     // Gera UID
-    const uid = crypto.randomUUID();
+    const uid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
     // Salva no nó pendentes
     await fbPut(`pendentes/${uid}`, {
@@ -47,13 +106,27 @@ exports.handler = async (event, context) => {
       criadoEm: Date.now()
     });
 
-    return jsonResponse({
-      sucesso: true,
-      mensagem: 'Cadastro enviado. Aguarde aprovação da liderança.',
-      uid
-    }, 201);
+    return {
+      statusCode: 201,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sucesso: true,
+        mensagem: 'Cadastro enviado. Aguarde aprovação da liderança.',
+        uid
+      })
+    };
 
   } catch (err) {
-    return errorResponse(err.message, 500);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };

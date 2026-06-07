@@ -1,47 +1,118 @@
 const { jsonResponse, errorResponse, handleOptions, getCurrentUser, fbGet, fbPut, fbDelete, listItems } = require('./utils');
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return handleOptions();
-  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') return errorResponse('Method not allowed', 405);
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+        'Content-Type': 'application/json'
+      },
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
 
   try {
     const currentUser = await getCurrentUser(event);
     if (!currentUser) {
-      return errorResponse('Não autenticado', 401);
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Não autenticado' })
+      };
     }
 
     // Verifica se é Líder ou Vice
     if (!['lider', 'vice'].includes(currentUser.cargo)) {
-      return errorResponse('Apenas Líder e Vice-Líder podem aprovar cadastros', 403);
+      return {
+        statusCode: 403,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Apenas Líder e Vice-Líder podem aprovar cadastros' })
+      };
     }
 
     // GET = listar pendentes
     if (event.httpMethod === 'GET') {
       const pendentes = await listItems('pendentes');
-      return jsonResponse({ pendentes });
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ pendentes })
+      };
     }
 
     // POST = aprovar/rejeitar
     const { uid, acao, cargo } = JSON.parse(event.body);
 
     if (!uid || !acao || !['aprovar', 'rejeitar'].includes(acao)) {
-      return errorResponse('UID e ação (aprovar/rejeitar) são obrigatórios', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'UID e ação (aprovar/rejeitar) são obrigatórios' })
+      };
     }
 
     const pendente = await fbGet(`pendentes/${uid}.json`);
     if (!pendente) {
-      return errorResponse('Cadastro pendente não encontrado', 404);
+      return {
+        statusCode: 404,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Cadastro pendente não encontrado' })
+      };
     }
 
     if (acao === 'rejeitar') {
       await fbDelete(`pendentes/${uid}`);
-      return jsonResponse({ sucesso: true, mensagem: 'Cadastro rejeitado e removido' });
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sucesso: true, mensagem: 'Cadastro rejeitado e removido' })
+      };
     }
 
     // Aprovar
     const cargoAprovado = cargo || 'estagiario';
     if (!['lider', 'vice', 'ministro', 'estagiario'].includes(cargoAprovado)) {
-      return errorResponse('Cargo inválido', 400);
+      return {
+        statusCode: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Cargo inválido' })
+      };
     }
 
     // Move de pendentes para usuarios
@@ -58,17 +129,31 @@ exports.handler = async (event, context) => {
 
     await fbDelete(`pendentes/${uid}`);
 
-    return jsonResponse({
-      sucesso: true,
-      mensagem: `Cadastro de ${pendente.nick} aprovado como ${cargoAprovado}`,
-      usuario: {
-        uid,
-        nick: pendente.nick,
-        cargo: cargoAprovado
-      }
-    });
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sucesso: true,
+        mensagem: `Cadastro de ${pendente.nick} aprovado como ${cargoAprovado}`,
+        usuario: {
+          uid,
+          nick: pendente.nick,
+          cargo: cargoAprovado
+        }
+      })
+    };
 
   } catch (err) {
-    return errorResponse(err.message, 500);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: err.message })
+    };
   }
 };
