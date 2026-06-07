@@ -1,4 +1,4 @@
-const { corsResponse, corsError, listItems, createItem, updateItem, deleteItem, nextNumericId, validateFuncao, getCurrentUser } = require('./utils');
+const { corsResponse, corsError, listItems, createItem, updateItem, deleteItem, nextNumericId, validateFuncao, getCurrentUser } = require('./auth/utils');
 
 exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS' || event.httpMethod === 'options') {
