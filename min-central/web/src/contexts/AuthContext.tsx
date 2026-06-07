@@ -22,10 +22,10 @@ interface AuthContextType {
   checkAuth: () => Promise<boolean>;
 }
 
-// ✅ CORRIGIDO: use "as" instead of generic syntax
 const AuthContext = createContext(undefined as unknown as AuthContextType | undefined);
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+// ✅ URL direta do Netlify Functions (sem /api)
+const API_BASE = import.meta.env.VITE_API_URL || 'https://mincentral-back.netlify.app/.netlify/functions';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -34,7 +34,6 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // ✅ CORRIGIDO: use "as" instead of generic syntax
   const [user, setUser] = useState(null as AuthUser | null);
   const [token, setToken] = useState(null as string | null);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const validateToken = async (authToken: string) => {
     try {
+      // ✅ Chama /me direto
       const res = await fetch(`${API_BASE}/me`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
@@ -80,7 +80,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const res = await fetch(`${API_BASE}/login`, {
+      // ✅ Chama /auth direto, o backend verifica event.path
+      const res = await fetch(`${API_BASE}/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nick, senha })
