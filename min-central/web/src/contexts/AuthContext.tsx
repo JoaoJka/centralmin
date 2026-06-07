@@ -24,7 +24,6 @@ interface AuthContextType {
 
 const AuthContext = createContext(undefined as unknown as AuthContextType | undefined);
 
-// ✅ URL direta do Netlify Functions (sem /api)
 const API_BASE = import.meta.env.VITE_API_URL || 'https://mincentral-back.netlify.app/.netlify/functions';
 
 export const useAuth = () => {
@@ -50,8 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const validateToken = async (authToken: string) => {
     try {
-      // ✅ Chama /me direto
-      const res = await fetch(`${API_BASE}/me`, {
+      // CORRIGIDO: /auth/me em vez de /me
+      const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       
@@ -80,8 +79,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // ✅ Chama /auth direto, o backend verifica event.path
-      const res = await fetch(`${API_BASE}/auth`, {
+      // CORRIGIDO: /auth/login em vez de /auth
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nick, senha })
