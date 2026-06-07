@@ -1,9 +1,15 @@
-# API Routes -> Functions (fallback se config.path não funcionar)
-/api/auth    /.netlify/functions/auth    200
-/api/funcoes /.netlify/functions/funcoes 200
-/api/funcoes/* /.netlify/functions/funcoes 200
-/api/escalas /.netlify/functions/escalas 200
-/api/escalas/* /.netlify/functions/escalas 200
-/api/members /.netlify/functions/members 200
-/api/members/* /.netlify/functions/members 200
-/api/config  /.netlify/functions/config  200
+# Auth
+/api/auth/register    /.netlify/functions/register    200
+/api/auth/login       /.netlify/functions/login       200
+/api/auth/me          /.netlify/functions/me            200
+/api/auth/approve     /.netlify/functions/approve       200
+/api/auth/reset-password /.netlify/functions/reset-password 200
+
+# API
+/api/funcoes          /.netlify/functions/funcoes     200
+/api/funcoes/*        /.netlify/functions/funcoes       200
+/api/escalas          /.netlify/functions/escalas       200
+/api/escalas/*        /.netlify/functions/escalas       200
+/api/members          /.netlify/functions/members       200
+/api/members/*        /.netlify/functions/members       200
+/api/config           /.netlify/functions/config        200

@@ -1,9 +1,29 @@
 // ============================================
-// UTILS - Helpers compartilhados (Firebase REST + Auth)
+// UTILS - Helpers compartilhados (Firebase REST + Auth + CORS)
 // ============================================
 
 const FIREBASE_URL = process.env.FIREBASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET || 'central-ministerial-secret-key-2026';
+
+// ---------- CORS RESPONSE HELPER ----------
+
+function corsResponse(body, statusCode = 200) {
+  return {
+    statusCode,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+      'Access-Control-Max-Age': '86400',
+      'Content-Type': 'application/json'
+    },
+    body: typeof body === 'string' ? body : JSON.stringify(body)
+  };
+}
+
+function corsError(message, statusCode = 400) {
+  return corsResponse({ error: message }, statusCode);
+}
 
 // ---------- FIREBASE REST HELPERS ----------
 
@@ -74,12 +94,13 @@ async function findByField(path, field, value) {
   return items.find(i => i[field] === value) || null;
 }
 
-// ---------- CORS HEADERS ----------
+// ---------- CORS HEADERS (legado) ----------
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+  'Access-Control-Max-Age': '86400',
   'Content-Type': 'application/json'
 };
 
@@ -126,14 +147,14 @@ async function verifyJWT(token) {
   }
 }
 
-function getAuthToken(req) {
-  const auth = req.headers.get('Authorization');
+function getAuthToken(event) {
+  const auth = event.headers?.Authorization || event.headers?.authorization;
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
   return null;
 }
 
-async function getCurrentUser(req) {
-  const token = getAuthToken(req);
+async function getCurrentUser(event) {
+  const token = getAuthToken(event);
   if (!token) return null;
   return verifyJWT(token);
 }
@@ -207,6 +228,7 @@ module.exports = {
   fbGet, fbPut, fbPatch, fbPost, fbDelete,
   listItems, createItem, updateItem, deleteItem, findByField,
   corsHeaders, jsonResponse, errorResponse, handleOptions,
+  corsResponse, corsError,
   signJWT, verifyJWT, getAuthToken, getCurrentUser,
   hashPassword, verifyPassword, verifyHabboMotto,
   validateFuncao, validateMember, validateEscala

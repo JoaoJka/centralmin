@@ -1,30 +1,13 @@
-const { validarChave, listItems, createItem, updateItem, deleteItem, nextNumericId, jsonResponse, errorResponse, handleOptions, validateMember, getCurrentUser } = require('./utils');
+const { corsResponse, corsError, listItems, createItem, updateItem, deleteItem, nextNumericId, validateMember, getCurrentUser } = require('./utils');
 
 exports.handler = async (event, context) => {
-  // CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
-        'Content-Type': 'application/json'
-      },
-      body: ''
-    };
+  if (event.httpMethod === 'OPTIONS' || event.httpMethod === 'options') {
+    return corsResponse('', 200);
   }
 
   const usuario = await getCurrentUser(event);
   if (!usuario) {
-    return {
-      statusCode: 401,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Não autenticado' })
-    };
+    return corsError('Não autenticado', 401);
   }
 
   const url = new URL(event.rawUrl || `https://localhost${event.path}`);
@@ -35,105 +18,36 @@ exports.handler = async (event, context) => {
     switch (event.httpMethod) {
       case 'GET': {
         const members = await listItems('members');
-        return {
-          statusCode: 200,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(members)
-        };
+        return corsResponse(members);
       }
 
       case 'POST': {
         const data = JSON.parse(event.body);
         const errors = validateMember(data);
-        if (errors) {
-          return {
-            statusCode: 400,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ error: errors.join(', ') })
-          };
-        }
+        if (errors) return corsError(errors.join(', '), 400);
 
         const newId = data.id || await nextNumericId('members');
         const created = await createItem('members', { ...data, id: newId });
-        return {
-          statusCode: 201,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(created)
-        };
+        return corsResponse(created, 201);
       }
 
       case 'PUT': {
         const data = JSON.parse(event.body);
         const updated = await updateItem('members', id, data);
-        if (!updated) {
-          return {
-            statusCode: 404,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ error: 'Record not found' })
-          };
-        }
-        return {
-          statusCode: 200,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(updated)
-        };
+        if (!updated) return corsError('Record not found', 404);
+        return corsResponse(updated);
       }
 
       case 'DELETE': {
         const deleted = await deleteItem('members', id);
-        if (!deleted) {
-          return {
-            statusCode: 404,
-            headers: {
-              'Access-Control-Allow-Origin': '*',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ error: 'Record not found' })
-          };
-        }
-        return {
-          statusCode: 204,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          },
-          body: ''
-        };
+        if (!deleted) return corsError('Record not found', 404);
+        return corsResponse('', 204);
       }
 
       default:
-        return {
-          statusCode: 405,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ error: 'Method not allowed' })
-        };
+        return corsError('Method not allowed', 405);
     }
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: err.message })
-    };
+    return corsError(err.message, 500);
   }
 };

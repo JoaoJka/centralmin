@@ -1,76 +1,31 @@
-const { validarChave, fbGet, fbPatch, jsonResponse, errorResponse, handleOptions, getCurrentUser } = require('./utils');
+const { corsResponse, corsError, fbGet, fbPatch, getCurrentUser } = require('./utils');
 
 exports.handler = async (event, context) => {
-  // CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
-        'Content-Type': 'application/json'
-      },
-      body: ''
-    };
+  if (event.httpMethod === 'OPTIONS' || event.httpMethod === 'options') {
+    return corsResponse('', 200);
   }
 
   const usuario = await getCurrentUser(event);
   if (!usuario) {
-    return {
-      statusCode: 401,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Não autenticado' })
-    };
+    return corsError('Não autenticado', 401);
   }
 
   try {
     if (event.httpMethod === 'GET') {
       const data = await fbGet('config/main');
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data || {})
-      };
+      return corsResponse(data || {});
     }
 
     if (event.httpMethod === 'PUT') {
       const data = JSON.parse(event.body);
       await fbPatch('config/main', data);
       const updated = await fbGet('config/main');
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updated || {})
-      };
+      return corsResponse(updated || {});
     }
 
-    return {
-      statusCode: 405,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+    return corsError('Method not allowed', 405);
 
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: err.message })
-    };
+    return corsError(err.message, 500);
   }
 };
