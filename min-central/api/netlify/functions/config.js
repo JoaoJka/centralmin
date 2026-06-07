@@ -1,4 +1,4 @@
-const { corsResponse, corsError, fbGet, fbPatch, getCurrentUser } = require('./auth/utils');
+const { corsResponse, corsError, fbGet, fbPatch, getCurrentUser } = require('./utils');
 
 exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS' || event.httpMethod === 'options') {
