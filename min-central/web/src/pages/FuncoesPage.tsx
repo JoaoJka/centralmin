@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../hooks/useToast';
 import { apiService } from '../services/api';
@@ -19,25 +19,59 @@ const FuncoesPage = () => {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
-  // Carregar funções ao montar - IGUAL A VERSÃO MÍNIMA
+  const weeksOfMonth = useMemo(() => 
+    getWeeksOfMonth(config.mesReferencia, config.anoReferencia),
+    [config.mesReferencia, config.anoReferencia]
+  );
+
+  const daysInMonth = useMemo(() => {
+    const count = new Date(config.anoReferencia, config.mesReferencia + 1, 0).getDate();
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [config.mesReferencia, config.anoReferencia]);
+
+  const selectedWeeksMap = useMemo(() => {
+    const map = new Map<number, { semana: number; dias: number[] }>();
+    selectedWeeks.forEach(w => map.set(w.semana, w));
+    return map;
+  }, [selectedWeeks]);
+
+  const filteredFuncoes = useMemo(() => {
+    if (!funcoes) return [];
+    const searchLower = search.toLowerCase();
+    return funcoes.filter(f => {
+      if (search && !f.nome.toLowerCase().includes(searchLower) && !f.ministry.includes(searchLower)) return false;
+      if (filter !== 'all' && f.ministry !== filter) return false;
+      return true;
+    });
+  }, [funcoes, search, filter]);
+
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     const carregarFuncoes = async () => {
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
+
       try {
         setPageLoading(true);
         const data = await apiService.getFuncoes();
         setFuncoes(data || []);
       } catch (err: any) {
-        showToast(err.message, 'error');
+        if (err.name !== 'AbortError') {
+          showToast(err.message, 'error');
+        }
       } finally {
         setPageLoading(false);
       }
     };
     carregarFuncoes();
-  }, []); // Array vazio = só uma vez
 
-  const weeksOfMonth = getWeeksOfMonth(config.mesReferencia, config.anoReferencia);
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [setFuncoes, showToast]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!formData.nome) {
       showToast('Digite o nome da função', 'error');
       return;
@@ -75,7 +109,6 @@ const FuncoesPage = () => {
         await apiService.createFuncao(newFuncao);
         showToast('Função criada', 'success');
       }
-      // Recarregar do backend
       const data = await apiService.getFuncoes();
       setFuncoes(data || []);
       setModalOpen(false);
@@ -86,9 +119,9 @@ const FuncoesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, editando, selectedWeeks, selectedDays, setFuncoes, showToast]);
 
-  const handleEdit = (funcao: Funcao) => {
+  const handleEdit = useCallback((funcao: Funcao) => {
     setEditando(funcao);
     setFormData({
       nome: funcao.nome,
@@ -104,9 +137,9 @@ const FuncoesPage = () => {
       setSelectedWeeks([]);
     }
     setModalOpen(true);
-  };
+  }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir esta função?')) return;
     try {
       setLoading(true);
@@ -119,40 +152,35 @@ const FuncoesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setFuncoes, showToast]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({ nome: '', ministry: 'financas', nivel: 'ministro', tipo: 'semanal' });
     setSelectedWeeks([]);
     setSelectedDays([]);
-  };
+  }, []);
 
-  const toggleWeek = (semanaIdx: number) => {
-    const exists = selectedWeeks.find(w => w.semana === semanaIdx);
-    if (exists) {
-      setSelectedWeeks(prev => prev.filter(w => w.semana !== semanaIdx));
-    } else {
-      setSelectedWeeks(prev => [...prev, { semana: semanaIdx, dias: [] }]);
-    }
-  };
+  const toggleWeek = useCallback((semanaIdx: number) => {
+    setSelectedWeeks(prev => {
+      const exists = prev.find(w => w.semana === semanaIdx);
+      if (exists) {
+        return prev.filter(w => w.semana !== semanaIdx);
+      }
+      return [...prev, { semana: semanaIdx, dias: [] }];
+    });
+  }, []);
 
-  const toggleDayInWeek = (semanaIdx: number, dia: number) => {
+  const toggleDayInWeek = useCallback((semanaIdx: number, dia: number) => {
     setSelectedWeeks(prev => prev.map(w => {
       if (w.semana !== semanaIdx) return w;
       const dias = w.dias.includes(dia) ? w.dias.filter(d => d !== dia) : [...w.dias, dia];
       return { ...w, dias };
     }));
-  };
+  }, []);
 
-  const toggleDayInMonth = (dia: number) => {
+  const toggleDayInMonth = useCallback((dia: number) => {
     setSelectedDays(prev => prev.includes(dia) ? prev.filter(d => d !== dia) : [...prev, dia]);
-  };
-
-  const filteredFuncoes = funcoes.filter(f => {
-    if (search && !f.nome.toLowerCase().includes(search.toLowerCase()) && !f.ministry.includes(search.toLowerCase())) return false;
-    if (filter !== 'all' && f.ministry !== filter) return false;
-    return true;
-  });
+  }, []);
 
   if (pageLoading) {
     return <div className="loading-state">Carregando funções...</div>;
@@ -291,7 +319,7 @@ const FuncoesPage = () => {
                 <label className="form-label">Selecione as Semanas e Dias</label>
                 <div className="weeks-selector-container">
                   {weeksOfMonth.map((week, idx) => {
-                    const weekData = selectedWeeks.find(w => w.semana === idx);
+                    const weekData = selectedWeeksMap.get(idx);
                     return (
                       <div key={idx} className={`week-option ${weekData ? 'selected' : ''}`} onClick={() => toggleWeek(idx)}>
                         <div className="week-option-checkbox">
@@ -321,9 +349,9 @@ const FuncoesPage = () => {
               <div className="form-group">
                 <label className="form-label">Selecione os Dias do Mês</label>
                 <div className="monthly-days-grid">
-                  {[...Array(new Date(config.anoReferencia, config.mesReferencia + 1, 0).getDate())].map((_, d) => (
-                    <button key={d + 1} type="button" className={`monthly-day-chip ${selectedDays.includes(d + 1) ? 'selected' : ''}`} onClick={() => toggleDayInMonth(d + 1)}>
-                      {d + 1}
+                  {daysInMonth.map(d => (
+                    <button key={d} type="button" className={`monthly-day-chip ${selectedDays.includes(d) ? 'selected' : ''}`} onClick={() => toggleDayInMonth(d)}>
+                      {d}
                     </button>
                   ))}
                 </div>
