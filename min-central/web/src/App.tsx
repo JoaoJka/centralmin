@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+// src/App.tsx
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth, AuthProvider } from './contexts/AuthContext'
 import { DataProvider } from './contexts/DataContext'
@@ -14,7 +15,15 @@ import ConfiguracoesPage from './pages/ConfiguracoesPage'
 import ApprovalsPage from './pages/ApprovalsPage'
 import './styles/globals.css'
 
-// ---------- COMPONENTE DE CARREGAMENTO ----------
+// ---------- TIPOS ----------
+interface AuthCheckResult {
+  checking?: boolean;
+  redirect?: string;
+  forbidden?: boolean;
+  user?: any;
+}
+
+// ---------- LOADING ----------
 function LoadingScreen() {
   return (
     <div style={{
@@ -32,8 +41,9 @@ function LoadingScreen() {
   )
 }
 
-// ---------- TELA DE ACESSO RESTRITO ----------
+// ---------- ACESSO RESTRITO ----------
 function AcessoRestritoPage() {
+  const navigate = useNavigate()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -44,143 +54,180 @@ function AcessoRestritoPage() {
         background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
         display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
       </div>
       <h1 style={{ color: '#e2e8f0', fontSize: '20px', fontWeight: 600 }}>Acesso Restrito</h1>
-      <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', maxWidth: '400px' }}>
+      <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center' }}>
         Apenas Líder e Vice-Líder têm acesso a esta página.
       </p>
-      <button
-        onClick={() => window.history.back()}
-        style={{
-          padding: '12px 28px', background: '#1e3a5f', color: '#fff',
-          border: '1px solid #3b82f6', borderRadius: '8px', cursor: 'pointer',
-          fontSize: '13px', fontFamily: 'inherit', marginTop: '8px'
-        }}
-      >
-        Voltar
+      <button onClick={() => navigate('/escalas')} style={{
+        padding: '12px 28px', background: '#1e3a5f', color: '#fff',
+        border: '1px solid #3b82f6', borderRadius: '8px', cursor: 'pointer',
+        fontSize: '13px', fontFamily: 'inherit', marginTop: '8px'
+      }}>
+        Voltar para Escalas
       </button>
     </div>
   )
 }
 
 // ---------- ROUTE GUARD ----------
-function ProtectedRoute({ children, requireAdmin = false, requireLeader = false }: { children: React.ReactNode, requireAdmin?: boolean, requireLeader?: boolean }) {
+function useRequireAuth(): AuthCheckResult {
   const { user, isLoading } = useAuth()
+  const location = useLocation()
 
-  if (isLoading) return <LoadingScreen />
-
-  if (!user) return <Navigate to="/" replace />
-
-  if (requireLeader && !['lider', 'vice'].includes(user.cargo)) {
-    return <AcessoRestritoPage />
-  }
-
-  if (requireAdmin && !['lider', 'vice', 'ministro'].includes(user.cargo)) {
-    return <AcessoRestritoPage />
-  }
-
-  return <>{children}</>
+  if (isLoading) return { checking: true }
+  if (!user) return { redirect: '/?from=' + encodeURIComponent(location.pathname) }
+  
+  return { user }
 }
 
-// ---------- APP PRINCIPAL ----------
-function App() {
-  const { user, isLoading, isAuthenticated } = useAuth()
+function useRequireRole(role: 'admin' | 'leader'): AuthCheckResult {
+  const auth = useRequireAuth()
+  if (auth.checking || auth.redirect) return auth
+  
+  const { user } = auth
+  if (!user) return { redirect: '/' }
+  
+  const isAdmin = ['lider', 'vice', 'ministro'].includes(user.cargo)
+  const isLeader = ['lider', 'vice'].includes(user.cargo)
+  
+  if (role === 'leader' && !isLeader) return { forbidden: true }
+  if (role === 'admin' && !isAdmin) return { forbidden: true }
+  
+  return { user }
+}
 
-  if (isLoading) {
-    return <LoadingScreen />
-  }
+// ---------- PÁGINAS COM GUARD ----------
+function EscalasRoute() {
+  const auth = useRequireAuth()
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  return <EscalasPage />
+}
 
-  // Determina permissões com base no user (se existir)
+function ManualRoute() {
+  const auth = useRequireAuth()
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  return <ManualPage />
+}
+
+function FuncoesRoute() {
+  const auth = useRequireRole('admin')
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  if (auth.forbidden) return <AcessoRestritoPage />
+  return <FuncoesPage />
+}
+
+function MembrosRoute() {
+  const auth = useRequireRole('admin')
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  if (auth.forbidden) return <AcessoRestritoPage />
+  return <MembrosPage />
+}
+
+function ConfiguracoesRoute() {
+  const auth = useRequireRole('admin')
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  if (auth.forbidden) return <AcessoRestritoPage />
+  return <ConfiguracoesPage />
+}
+
+function ApprovalsRoute() {
+  const auth = useRequireRole('leader')
+  if (auth.checking) return <LoadingScreen />
+  if (auth.redirect) return <Navigate to={auth.redirect} replace />
+  if (auth.forbidden) return <AcessoRestritoPage />
+  return <ApprovalsPage />
+}
+
+// ---------- LAYOUT COM SIDEBAR ----------
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
   const isAdmin = user ? ['lider', 'vice', 'ministro'].includes(user.cargo) : false
   const isLeader = user ? ['lider', 'vice'].includes(user.cargo) : false
 
   return (
+    <div style={{ display: 'flex' }}>
+      <Sidebar
+        userNick={user?.nick || ''}
+        userCargo={user?.cargo || ''}
+        isAdmin={isAdmin}
+        isLeader={isLeader}
+      />
+      <main style={{ 
+        flex: 1, 
+        marginLeft: '260px', 
+        padding: '32px 40px', 
+        background: '#080c14', 
+        minHeight: '100vh' 
+      }}>
+        {children}
+      </main>
+    </div>
+  )
+}
+
+// ---------- APP PRINCIPAL ----------
+function AppRoutes() {
+  const { user, isLoading, isAuthenticated } = useAuth()
+
+  if (isLoading) return <LoadingScreen />
+
+  return (
     <DataProvider>
       <ToastProvider>
-        <Router>
-          <Routes>
-            {/* ROTAS PÚBLICAS */}
-            <Route path="/" element={
-              isAuthenticated ? <Navigate to="/escalas" replace /> : <LoginPage />
-            } />
-            <Route path="/registro" element={
-              isAuthenticated ? <Navigate to="/escalas" replace /> : <RegisterPage />
-            } />
+        <Routes>
+          {/* PÚBLICAS - redireciona se já logado */}
+          <Route path="/" element={
+            isAuthenticated ? <Navigate to="/escalas" replace /> : <LoginPage />
+          } />
+          <Route path="/registro" element={
+            isAuthenticated ? <Navigate to="/escalas" replace /> : <RegisterPage />
+          } />
 
-            {/* ROTAS PROTEGIDAS COM LAYOUT */}
-            <Route path="/*" element={
-              <ProtectedRoute>
-                <div style={{ display: 'flex' }}>
-                  <Sidebar
-                    userNick={user?.nick || ''}
-                    userCargo={user?.cargo || ''}
-                    isAdmin={isAdmin}
-                    isLeader={isLeader}
-                  />
-                  <main style={{ flex: 1, marginLeft: '260px', padding: '32px 40px', background: '#080c14', minHeight: '100vh' }}>
-                    <Routes>
-                      <Route path="/escalas" element={<EscalasPage />} />
-                      <Route path="/manual/:ministry" element={<ManualPage />} />
+          {/* PROTEGIDAS - com layout */}
+          <Route path="/escalas" element={
+            <AppLayout><EscalasRoute /></AppLayout>
+          } />
+          <Route path="/manual/:ministry" element={
+            <AppLayout><ManualRoute /></AppLayout>
+          } />
+          <Route path="/funcoes" element={
+            <AppLayout><FuncoesRoute /></AppLayout>
+          } />
+          <Route path="/membros" element={
+            <AppLayout><MembrosRoute /></AppLayout>
+          } />
+          <Route path="/configuracoes" element={
+            <AppLayout><ConfiguracoesRoute /></AppLayout>
+          } />
+          <Route path="/aprovacoes" element={
+            <AppLayout><ApprovalsRoute /></AppLayout>
+          } />
 
-                      {/* Admin: Funções, Membros, Configurações */}
-                      <Route
-                        path="/funcoes"
-                        element={
-                          <ProtectedRoute requireAdmin={true}>
-                            <FuncoesPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/membros"
-                        element={
-                          <ProtectedRoute requireAdmin={true}>
-                            <MembrosPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/configuracoes"
-                        element={
-                          <ProtectedRoute requireAdmin={true}>
-                            <ConfiguracoesPage />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Leader: Aprovações */}
-                      <Route
-                        path="/aprovacoes"
-                        element={
-                          <ProtectedRoute requireLeader={true}>
-                            <ApprovalsPage />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      {/* Fallback */}
-                      <Route path="*" element={<Navigate to="/escalas" replace />} />
-                    </Routes>
-                  </main>
-                </div>
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </Router>
+          {/* FALLBACK */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/escalas" : "/"} replace />} />
+        </Routes>
       </ToastProvider>
     </DataProvider>
   )
 }
 
-// ---------- WRAPPER COM PROVIDERS ----------
+// ---------- WRAPPER ----------
 function AppWrapper() {
   return (
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
   )
 }
 

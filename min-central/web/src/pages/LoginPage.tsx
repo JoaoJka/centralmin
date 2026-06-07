@@ -1,27 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';  // ✅ Adicionado useEffect
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const [nick, setNick] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // ✅ CORRIGIDO: useEffect importado
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/escalas', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!nick || !senha) {
       showToast('Preencha nick e senha', 'error');
       return;
     }
+    
     setLoading(true);
+    
     try {
       await login(nick, senha);
       showToast('Login realizado com sucesso!', 'success');
-      navigate('/escalas');
+      navigate('/escalas', { replace: true });
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {

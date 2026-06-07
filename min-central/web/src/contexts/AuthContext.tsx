@@ -1,9 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+// src/contexts/AuthContext.tsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthUser {
   nick: string;
   cargo: string;
-  status: string;
+  ministry?: string;
+  avatar?: string;
+  modLevel?: number;
+  disponivel?: boolean;
+  verificado?: boolean;
+  aprovado?: boolean;
 }
 
 interface AuthContextType {
@@ -16,7 +22,8 @@ interface AuthContextType {
   checkAuth: () => Promise<boolean>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ✅ CORRIGIDO: use "as" instead of generic syntax
+const AuthContext = createContext(undefined as unknown as AuthContextType | undefined);
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -26,68 +33,86 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // ✅ CORRIGIDO: use "as" instead of generic syntax
+  const [user, setUser] = useState(null as AuthUser | null);
+  const [token, setToken] = useState(null as string | null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = sessionStorage.getItem('auth_token');
+    const savedToken = localStorage.getItem('auth_token');
     if (savedToken) {
       setToken(savedToken);
-      checkAuth(savedToken);
+      validateToken(savedToken);
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const checkAuth = async (authToken?: string) => {
-    const t = authToken || token;
-    if (!t) {
-      setIsLoading(false);
-      return false;
-    }
+  const validateToken = async (authToken: string) => {
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { 'Authorization': `Bearer ${t}` }
+        headers: { 'Authorization': `Bearer ${authToken}` }
       });
+      
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
+        setUser(data.user || data);
         setIsLoading(false);
         return true;
       } else {
-        logout();
+        localStorage.removeItem('auth_token');
+        setToken(null);
+        setUser(null);
         setIsLoading(false);
         return false;
       }
     } catch {
-      logout();
+      localStorage.removeItem('auth_token');
+      setToken(null);
+      setUser(null);
       setIsLoading(false);
       return false;
     }
   };
 
   const login = async (nick: string, senha: string) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nick, senha })
-    });
+    setIsLoading(true);
+    
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nick, senha })
+      });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erro ao fazer login');
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao fazer login');
+      }
 
-    sessionStorage.setItem('auth_token', data.token);
-    setToken(data.token);
-    setUser(data.usuario);
+      localStorage.setItem('auth_token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
-    sessionStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_token');
     setToken(null);
     setUser(null);
-    window.location.href = '/';
+  };
+
+  const checkAuth = async () => {
+    if (!token) {
+      setIsLoading(false);
+      return false;
+    }
+    return validateToken(token);
   };
 
   return (
@@ -95,7 +120,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       user,
       token,
       isLoading,
-      isAuthenticated: !!user,
+      isAuthenticated: !!user && !!token,
       login,
       logout,
       checkAuth
