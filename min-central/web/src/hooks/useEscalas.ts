@@ -20,7 +20,7 @@ export const useEscalas = () => {
     membersRef.current = members;
   });
   
-  const [rodizioIndex, setRodizioIndex] = useState<<Record<string, number>>(() => {
+  const [rodizioIndex, setRodizioIndex] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('escala_rodizio_index');
     return saved ? JSON.parse(saved) : {};
   });
