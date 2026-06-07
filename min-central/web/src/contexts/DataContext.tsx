@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Funcao, Escala, Membro, Config } from '../types';
-import { apiService } from '../services/apiService';
+import { apiService } from '../services/api';
 
 interface DataContextType {
   funcoes: Funcao[];

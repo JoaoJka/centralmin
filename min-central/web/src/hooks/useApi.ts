@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useData } from '../contexts/DataContext';
-import { apiService } from '../services/apiService';
+import { apiService } from '../services/api';
 import { Funcao, Escala, Membro } from '../types';
 
 interface UseApiOptions {

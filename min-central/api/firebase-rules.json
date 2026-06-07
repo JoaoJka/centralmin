@@ -1,0 +1,34 @@
+{
+  "rules": {
+    "chaves_api": {
+      "$nick": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "sessoes": {
+      "$chave": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "funcoes": {
+      ".read": true,
+      ".write": true
+    },
+    "escalas": {
+      ".read": true,
+      ".write": true
+    },
+    "members": {
+      ".read": true,
+      ".write": true
+    },
+    "config": {
+      "main": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
