@@ -1,5 +1,4 @@
-// netlify/functions/auth.js
-const { CORS_HEADERS, findUserByNick, findUserByEmail, verifyPassword, hashPassword, signJWT, verifyJWT, fbPost } = require('./utils.js');
+const { CORS_HEADERS, findUserByNick, verifyPassword, hashPassword, signJWT, verifyJWT, fbPost } = require('./utils.js');
 
 function parseBody(event) {
   if (!event.body) return {};
@@ -17,12 +16,13 @@ function parseBody(event) {
 
 exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ok: true }) };
+    const origin = event.headers?.origin || event.headers?.Origin || 'https://centralmin.vercel.app';
+    const headers = { ...CORS_HEADERS, 'Access-Control-Allow-Origin': origin };
+    return { statusCode: 204, headers, body: '' };
   }
 
   const path = event.path || '';
 
-  // LOGIN
   if (path.includes('/login') && event.httpMethod === 'POST') {
     try {
       const body = parseBody(event);
@@ -30,11 +30,7 @@ exports.handler = async (event, context) => {
       const passwordToCheck = password || senha;
 
       if (!nick || !passwordToCheck) {
-        return { 
-          statusCode: 400, 
-          headers: CORS_HEADERS, 
-          body: JSON.stringify({ error: 'Nick e senha obrigatórios' }) 
-        };
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Nick e senha obrigatórios' }) };
       }
 
       const user = await findUserByNick(nick);
@@ -42,13 +38,8 @@ exports.handler = async (event, context) => {
         return { statusCode: 401, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Usuário não encontrado' }) };
       }
 
-      // Verifica se foi aprovado
       if (user.aprovado === false) {
-        return { 
-          statusCode: 403, 
-          headers: CORS_HEADERS, 
-          body: JSON.stringify({ error: 'Cadastro aguardando aprovação da liderança' }) 
-        };
+        return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Cadastro aguardando aprovação da liderança' }) };
       }
 
       const valid = await verifyPassword(passwordToCheck, user.passwordHash);
@@ -80,30 +71,17 @@ exports.handler = async (event, context) => {
     }
   }
 
-  // REGISTER - ATUALIZADO PARA O FRONTEND
   if (path.includes('/register') && event.httpMethod === 'POST') {
     try {
       const body = parseBody(event);
       const { nick, codigo, senha, cargo, ministry } = body;
 
-      // Validação com campos do frontend
       if (!nick || !codigo || !senha) {
-        return { 
-          statusCode: 400, 
-          headers: CORS_HEADERS, 
-          body: JSON.stringify({ 
-            error: 'Nick, código de verificação e senha são obrigatórios',
-            received: body 
-          }) 
-        };
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Nick, código de verificação e senha são obrigatórios', received: body }) };
       }
 
       if (senha.length < 6) {
-        return { 
-          statusCode: 400, 
-          headers: CORS_HEADERS, 
-          body: JSON.stringify({ error: 'Senha deve ter no mínimo 6 caracteres' }) 
-        };
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Senha deve ter no mínimo 6 caracteres' }) };
       }
 
       const existingNick = await findUserByNick(nick);
@@ -124,7 +102,7 @@ exports.handler = async (event, context) => {
         disponivel: true,
         createdAt: Date.now(),
         verificado: false,
-        aprovado: false, // aguardando aprovação
+        aprovado: false,
       };
 
       const result = await fbPost('usuarios', newUser);
@@ -153,7 +131,6 @@ exports.handler = async (event, context) => {
     }
   }
 
-  // ME
   if (path.includes('/me') && event.httpMethod === 'GET') {
     try {
       const auth = event.headers?.Authorization || event.headers?.authorization;
