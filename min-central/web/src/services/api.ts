@@ -1,27 +1,32 @@
 // ============================================
-// API - Cliente HTTP para Netlify Functions (React/TS)
+// API - Cliente HTTP para Netlify Functions
 // ============================================
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+// URL DO SEU BACKEND NETLIFY - COLOQUE AQUI OU NO .env
+const API_BASE = import.meta.env.VITE_API_URL || 'https://mincentral-back.netlify.app/.netlify/functions';
 
 // ---------- CLIENTE HTTP BASE ----------
 
-async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const token = sessionStorage.getItem('auth_token');
+async function fetchAPI(endpoint: string, options: RequestInit = {}, requireAuth: boolean = true) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) || {})
+  };
 
-  if (!token) {
-    throw new Error('Não autenticado. Faça login.');
+  // Só adiciona Authorization se requireAuth for true
+  if (requireAuth) {
+    const token = sessionStorage.getItem('auth_token');
+    if (!token) {
+      throw new Error('Não autenticado. Faça login.');
+    }
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const url = `${API_BASE}/${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
+    headers
   });
 
   if (response.status === 401 || response.status === 403) {
@@ -39,6 +44,48 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   return response.json();
 }
+
+// ---------- AUTH (LOGIN/REGISTER/ME) ----------
+
+export const apiAuth = {
+  // LOGIN - não precisa de token
+  login: async (nick: string, password: string) => {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nick, password })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Erro no login' }));
+      throw new Error(error.error || 'Erro no login');
+    }
+    
+    return response.json();
+  },
+
+  // REGISTER - não precisa de token
+  register: async (nick: string, codigo: string, senha: string, cargo?: string, ministry?: string) => {
+    const response = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nick, codigo, senha, cargo, ministry })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Erro no cadastro' }));
+      throw new Error(error.error || 'Erro no cadastro');
+    }
+    
+    return response.json();
+  },
+
+  // ME - precisa de token
+  me: () => fetchAPI('auth/me', {}, true),
+  
+  // VALIDATE (alias para me)
+  validate: () => fetchAPI('auth/me', {}, true),
+};
 
 // ---------- FUNCOES ----------
 
@@ -74,17 +121,41 @@ export const apiConfig = {
   update: (data: any) => fetchAPI('config', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
-// ---------- AUTH ----------
+// ---------- APPROVE (APROVAÇÃO DE CADASTROS) ----------
 
-export const apiAuth = {
-  validate: () => fetchAPI('auth/me'),
+export const apiApprove = {
+  list: () => fetchAPI('approve'),
+  approve: (uid: string, cargo?: string) => fetchAPI('approve', { 
+    method: 'POST', 
+    body: JSON.stringify({ uid, acao: 'aprovar', cargo }) 
+  }),
+  reject: (uid: string) => fetchAPI('approve', { 
+    method: 'POST', 
+    body: JSON.stringify({ uid, acao: 'rejeitar' }) 
+  }),
+};
+
+// ---------- RESET PASSWORD ----------
+
+export const apiResetPassword = {
+  reset: (nick: string, novaSenha: string) => fetchAPI('reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ nick, novaSenha })
+  }),
 };
 
 // ============================================
-// apiService - Compatibilidade com DataContext.tsx
+// apiService - Compatibilidade com DataContext
 // ============================================
 
 export const apiService = {
+  // Auth
+  login: (nick: string, password: string) => apiAuth.login(nick, password),
+  register: (nick: string, codigo: string, senha: string, cargo?: string, ministry?: string) => 
+    apiAuth.register(nick, codigo, senha, cargo, ministry),
+  getMe: () => apiAuth.me(),
+  validateAuth: () => apiAuth.validate(),
+
   // Funções
   getFuncoes: () => apiFuncoes.list(),
   createFuncao: (data: any) => apiFuncoes.create(data),
@@ -111,6 +182,14 @@ export const apiService = {
   // Config
   getConfig: () => apiConfig.get(),
   updateConfig: (data: any) => apiConfig.update(data),
+
+  // Approve
+  getPendentes: () => apiApprove.list(),
+  approveCadastro: (uid: string, cargo?: string) => apiApprove.approve(uid, cargo),
+  rejectCadastro: (uid: string) => apiApprove.reject(uid),
+
+  // Reset Password
+  resetPassword: (nick: string, novaSenha: string) => apiResetPassword.reset(nick, novaSenha),
 };
 
 export default apiService;
