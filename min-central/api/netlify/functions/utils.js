@@ -86,6 +86,22 @@ export async function validarChave(chave) {
   return { nick: sessao.nick, cargo: userData.cargo };
 }
 
+// ---------- PERMISSÕES NO BACKEND ----------
+
+export function podeAcessarAdminBackend(cargo) {
+  if (!cargo) return false;
+  const c = String(cargo).toLowerCase().trim();
+  return c === 'lider' || c === 'vice';
+}
+
+export function podeEditarManuaisBackend(cargo, configManualMinistro) {
+  if (!cargo) return false;
+  const c = String(cargo).toLowerCase().trim();
+  if (c === 'lider' || c === 'vice') return true;
+  if (c === 'ministro' && configManualMinistro) return true;
+  return false;
+}
+
 // ---------- CORS HEADERS ----------
 
 export const corsHeaders = {
@@ -136,6 +152,5 @@ export function validateEscala(data) {
 }
 
 export function validateConfig(data) {
-  // Config é mais flexível, aceita qualquer campo
   return null;
 }

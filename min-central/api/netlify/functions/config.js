@@ -1,4 +1,4 @@
-import { validarChave, fbGet, fbPatch, jsonResponse, errorResponse, handleOptions } from './utils.js';
+import { validarChave, fbGet, fbPatch, jsonResponse, errorResponse, handleOptions, podeAcessarAdminBackend } from './utils.js';
 
 export default async (req, context) => {
   if (req.method === 'OPTIONS') return handleOptions();
@@ -10,6 +10,8 @@ export default async (req, context) => {
     return errorResponse('Unauthorized', 403);
   }
 
+  const isAdmin = podeAcessarAdminBackend(usuario.cargo);
+
   try {
     if (req.method === 'GET') {
       const data = await fbGet('config/main');
@@ -17,6 +19,9 @@ export default async (req, context) => {
     }
 
     if (req.method === 'PUT') {
+      if (!isAdmin) {
+        return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem alterar configurações.', 403);
+      }
       const data = await req.json();
       await fbPatch('config/main', data);
       const updated = await fbGet('config/main');

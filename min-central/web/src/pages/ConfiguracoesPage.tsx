@@ -1,7 +1,31 @@
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../hooks/useToast';
+import { getCurrentCargo, podeAcessarConfig } from '../utils/auth';
 
 const ConfiguracoesPage = () => {
+  // SEGUNDA VERIFICAÇÃO — mesmo se alguém burlar o Route Guard
+  const cargo = getCurrentCargo();
+  if (!podeAcessarConfig(cargo)) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '60vh', flexDirection: 'column', gap: '16px'
+      }}>
+        <div style={{
+          width: '64px', height: '64px', borderRadius: '16px',
+          background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+        <h2 style={{ color: '#e2e8f0', fontSize: '18px', fontWeight: 600 }}>Acesso Restrito</h2>
+        <p style={{ color: '#64748b', fontSize: '14px' }}>Apenas Líder e Vice-Líder podem acessar configurações.</p>
+      </div>
+    );
+  }
+
   const { config, setConfig } = useData();
   const { showToast } = useToast();
 

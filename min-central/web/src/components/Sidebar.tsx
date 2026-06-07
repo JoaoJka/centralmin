@@ -1,7 +1,16 @@
-import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { ministryNames } from '../utils/constants';
 
-const Sidebar = () => {
+interface SidebarProps {
+  userNick: string;
+  userCargo: string;
+  isAdmin: boolean;
+  isConvidado: boolean;
+  onLogout: () => void;
+}
+
+const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,6 +59,14 @@ const Sidebar = () => {
     </svg>
   );
 
+  const logoutIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+
   const chevronDown = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
       <polyline points="6 9 12 15 18 9" />
@@ -62,11 +79,75 @@ const Sidebar = () => {
     </svg>
   );
 
+  const cargoDisplay = userCargo ? userCargo.charAt(0).toUpperCase() + userCargo.slice(1) : '';
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
         <h1 className="sidebar-title">Instrutores</h1>
         <p className="sidebar-subtitle">Central Ministerial</p>
+      </div>
+
+      {/* PERFIL DO USUÁRIO */}
+      <div style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <img
+          src={`https://www.habbo.com.br/habbo-imaging/avatarimage?user=${encodeURIComponent(userNick || 'Habbo')}&direction=4&head_direction=3&action=std&gesture=sml&size=s`}
+          alt={userNick}
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            border: '2px solid rgba(59,130,246,0.3)',
+            background: '#0f172a'
+          }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            color: '#e2e8f0',
+            fontSize: '14px',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {userNick || 'Usuário'}
+          </div>
+          <div style={{
+            color: isAdmin ? '#60a5fa' : isConvidado ? '#94a3b8' : '#64748b',
+            fontSize: '11px',
+            textTransform: 'capitalize'
+          }}>
+            {cargoDisplay || 'Convidado'}
+            {isAdmin && ' (Admin)'}
+          </div>
+        </div>
+        <button
+          onClick={onLogout}
+          title="Sair"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#64748b',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '6px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.background = 'transparent'; }}
+        >
+          <span style={{ width: '16px', height: '16px', display: 'flex' }}>{logoutIcon}</span>
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -81,7 +162,7 @@ const Sidebar = () => {
           </button>
           <div className="nav-group-items">
             <button
-              className={`nav-link ${isActive('/escalas') ? 'active' : ''}`}
+              className={`nav-link ${isActive('/escalas') || isActive('/') ? 'active' : ''}`}
               onClick={() => navigate('/escalas')}
             >
               <span className="nav-link-dot" />
@@ -113,39 +194,41 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* ADMINISTRAÇÃO */}
-        <div className={`nav-group ${openMenus.administracao ? 'open' : ''}`}>
-          <button className="nav-group-header" onClick={() => toggleMenu('administracao')}>
-            <div className="nav-group-left">
-              <span className="nav-group-icon">{settingsIcon}</span>
-              <span className="nav-group-title">Administração</span>
+        {/* ADMINISTRAÇÃO — SÓ MOSTRA SE FOR ADMIN */}
+        {isAdmin && (
+          <div className={`nav-group ${openMenus.administracao ? 'open' : ''}`}>
+            <button className="nav-group-header" onClick={() => toggleMenu('administracao')}>
+              <div className="nav-group-left">
+                <span className="nav-group-icon">{settingsIcon}</span>
+                <span className="nav-group-title">Administração</span>
+              </div>
+              <span className="nav-group-chevron">{openMenus.administracao ? chevronDown : chevronRight}</span>
+            </button>
+            <div className="nav-group-items">
+              <button
+                className={`nav-link ${isActive('/funcoes') ? 'active' : ''}`}
+                onClick={() => navigate('/funcoes')}
+              >
+                <span className="nav-link-dot" />
+                <span className="nav-link-text">Funções</span>
+              </button>
+              <button
+                className={`nav-link ${isActive('/membros') ? 'active' : ''}`}
+                onClick={() => navigate('/membros')}
+              >
+                <span className="nav-link-dot" />
+                <span className="nav-link-text">Membros</span>
+              </button>
+              <button
+                className={`nav-link ${isActive('/configuracoes') ? 'active' : ''}`}
+                onClick={() => navigate('/configuracoes')}
+              >
+                <span className="nav-link-dot" />
+                <span className="nav-link-text">Configurações</span>
+              </button>
             </div>
-            <span className="nav-group-chevron">{openMenus.administracao ? chevronDown : chevronRight}</span>
-          </button>
-          <div className="nav-group-items">
-            <button
-              className={`nav-link ${isActive('/funcoes') ? 'active' : ''}`}
-              onClick={() => navigate('/funcoes')}
-            >
-              <span className="nav-link-dot" />
-              <span className="nav-link-text">Funções</span>
-            </button>
-            <button
-              className={`nav-link ${isActive('/membros') ? 'active' : ''}`}
-              onClick={() => navigate('/membros')}
-            >
-              <span className="nav-link-dot" />
-              <span className="nav-link-text">Membros</span>
-            </button>
-            <button
-              className={`nav-link ${isActive('/configuracoes') ? 'active' : ''}`}
-              onClick={() => navigate('/configuracoes')}
-            >
-              <span className="nav-link-dot" />
-              <span className="nav-link-text">Configurações</span>
-            </button>
           </div>
-        </div>
+        )}
       </nav>
 
       <div className="sidebar-footer">

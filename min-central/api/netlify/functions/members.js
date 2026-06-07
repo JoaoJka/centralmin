@@ -1,6 +1,6 @@
 import {
   validarChave, listItems, createItem, updateItem, deleteItem, nextNumericId,
-  jsonResponse, errorResponse, handleOptions, validateMember
+  jsonResponse, errorResponse, handleOptions, validateMember, podeAcessarAdminBackend
 } from './utils.js';
 
 export default async (req, context) => {
@@ -12,6 +12,8 @@ export default async (req, context) => {
   if (!usuario) {
     return errorResponse('Unauthorized', 403);
   }
+
+  const isAdmin = podeAcessarAdminBackend(usuario.cargo);
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
@@ -25,6 +27,9 @@ export default async (req, context) => {
       }
 
       case 'POST': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem adicionar membros.', 403);
+        }
         const data = await req.json();
         const errors = validateMember(data);
         if (errors) return errorResponse(errors.join(', '), 400);
@@ -35,6 +40,9 @@ export default async (req, context) => {
       }
 
       case 'PUT': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem editar membros.', 403);
+        }
         const data = await req.json();
         const updated = await updateItem('members', id, data);
         if (!updated) return errorResponse('Record not found', 404);
@@ -42,6 +50,9 @@ export default async (req, context) => {
       }
 
       case 'DELETE': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem remover membros.', 403);
+        }
         const deleted = await deleteItem('members', id);
         if (!deleted) return errorResponse('Record not found', 404);
         return new Response('', { status: 204, headers: corsHeaders });

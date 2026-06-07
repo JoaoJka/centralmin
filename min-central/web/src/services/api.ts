@@ -2,7 +2,7 @@
 // API - Cliente HTTP para Netlify Functions
 // ============================================
 
-import { getApiKey } from '../utils/auth';
+import { getApiKey, logout } from '../utils/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -11,7 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const chave = getApiKey();
 
-  if (!chave) {
+  if (!chave || chave === 'convidado') {
     throw new Error('Não autenticado. Faça login pelo fórum.');
   }
 
@@ -27,8 +27,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   });
 
   if (response.status === 401 || response.status === 403) {
-    sessionStorage.clear();
-    window.location.href = '/';
+    logout();
     throw new Error('Sessão expirada. Faça login novamente.');
   }
 

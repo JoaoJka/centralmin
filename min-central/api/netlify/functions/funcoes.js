@@ -1,6 +1,6 @@
 import {
   validarChave, listItems, createItem, updateItem, deleteItem, nextNumericId,
-  jsonResponse, errorResponse, handleOptions, validateFuncao
+  jsonResponse, errorResponse, handleOptions, validateFuncao, podeAcessarAdminBackend
 } from './utils.js';
 
 export default async (req, context) => {
@@ -12,6 +12,9 @@ export default async (req, context) => {
   if (!usuario) {
     return errorResponse('Unauthorized', 403);
   }
+
+  // GET permite todos autenticados, mas POST/PUT/DELETE exige admin
+  const isAdmin = podeAcessarAdminBackend(usuario.cargo);
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
@@ -25,6 +28,9 @@ export default async (req, context) => {
       }
 
       case 'POST': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem criar funções.', 403);
+        }
         const data = await req.json();
         const errors = validateFuncao(data);
         if (errors) return errorResponse(errors.join(', '), 400);
@@ -35,6 +41,9 @@ export default async (req, context) => {
       }
 
       case 'PUT': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem editar funções.', 403);
+        }
         const data = await req.json();
         const updated = await updateItem('funcoes', id, data);
         if (!updated) return errorResponse('Record not found', 404);
@@ -42,6 +51,9 @@ export default async (req, context) => {
       }
 
       case 'DELETE': {
+        if (!isAdmin) {
+          return errorResponse('Acesso negado. Apenas Líder e Vice-Líder podem excluir funções.', 403);
+        }
         const deleted = await deleteItem('funcoes', id);
         if (!deleted) return errorResponse('Record not found', 404);
         return new Response('', { status: 204, headers: corsHeaders });

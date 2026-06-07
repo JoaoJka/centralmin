@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ministryNames, ministryColors } from '../utils/constants';
 import { useToast } from '../contexts/ToastContext';
+import { getCurrentCargo, podeEditarManuais } from '../utils/auth';
+import { useData } from '../contexts/DataContext';
 
 const ManualPage = () => {
   const { ministry } = useParams<{ ministry: string }>();
   const { showToast } = useToast();
+  const { config } = useData();
   const [manual, setManual] = useState({ titulo: `Manual de ${ministryNames[ministry || '']}`, conteudo: '', atualizado: 'Nunca' });
   const [editando, setEditando] = useState(false);
   const [editTitulo, setEditTitulo] = useState(manual.titulo);
   const [editConteudo, setEditConteudo] = useState(manual.conteudo);
+
+  const cargo = getCurrentCargo();
+  const podeEditar = podeEditarManuais(cargo, config.manualMinistro);
 
   const handleSave = () => {
     setManual({ titulo: editTitulo, conteudo: editConteudo, atualizado: new Date().toISOString().split('T')[0] });
@@ -66,13 +72,15 @@ const ManualPage = () => {
               </button>
             </>
           ) : (
-            <button className="manual-btn manual-btn-primary" onClick={() => setEditando(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Editar
-            </button>
+            podeEditar && (
+              <button className="manual-btn manual-btn-primary" onClick={() => setEditando(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Editar
+              </button>
+            )
           )}
         </div>
       </div>
@@ -114,14 +122,16 @@ const ManualPage = () => {
                   </svg>
                 </div>
                 <h3>Manual vazio</h3>
-                <p>Este manual ainda não possui conteúdo. Clique em "Editar" para começar a escrever.</p>
-                <button className="manual-btn manual-btn-primary" onClick={() => setEditando(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  Escrever Manual
-                </button>
+                <p>Este manual ainda não possui conteúdo. {podeEditar ? 'Clique em "Editar" para começar a escrever.' : 'Apenas ministros podem editar manuais.'}</p>
+                {podeEditar && (
+                  <button className="manual-btn manual-btn-primary" onClick={() => setEditando(true)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Escrever Manual
+                  </button>
+                )}
               </div>
             )}
           </div>
