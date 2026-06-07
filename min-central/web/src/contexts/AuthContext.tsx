@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const validateToken = async (authToken: string) => {
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
+      const res = await fetch(`${API_BASE}/me`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nick, senha })
