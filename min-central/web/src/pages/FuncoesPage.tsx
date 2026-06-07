@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../hooks/useToast';
+import { apiService } from '../services/api';
 import { ministryNames, ministryColors, dayNamesShort } from '../utils/constants';
 import { getWeeksOfMonth, formatDateFull } from '../utils/dateUtils';
 import { Funcao } from '../types';
@@ -15,10 +16,11 @@ const FuncoesPage = () => {
   const [formData, setFormData] = useState({ nome: '', ministry: 'financas', nivel: 'ministro', tipo: 'semanal' as 'semanal' | 'mensal' });
   const [selectedWeeks, setSelectedWeeks] = useState<{ semana: number; dias: number[] }[]>([]);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const weeksOfMonth = getWeeksOfMonth(config.mesReferencia, config.anoReferencia);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nome) {
       showToast('Digite o nome da função', 'error');
       return;
@@ -47,16 +49,26 @@ const FuncoesPage = () => {
       newFuncao.diasMes = [...selectedDays].sort((a, b) => a - b);
     }
 
-    if (editando) {
-      setFuncoes(prev => prev.map(f => f.id === editando.id ? newFuncao : f));
-      showToast('Função atualizada', 'success');
-    } else {
-      setFuncoes(prev => [...prev, newFuncao]);
-      showToast('Função criada', 'success');
+    try {
+      setLoading(true);
+      if (editando) {
+        await apiService.updateFuncao(editando.id, newFuncao);
+        showToast('Função atualizada', 'success');
+      } else {
+        await apiService.createFuncao(newFuncao);
+        showToast('Função criada', 'success');
+      }
+      // Recarregar do backend
+      const data = await apiService.getFuncoes();
+      setFuncoes(data || []);
+      setModalOpen(false);
+      setEditando(null);
+      resetForm();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
     }
-    setModalOpen(false);
-    setEditando(null);
-    resetForm();
   };
 
   const handleEdit = (funcao: Funcao) => {
@@ -77,10 +89,18 @@ const FuncoesPage = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja excluir esta função?')) {
-      setFuncoes(prev => prev.filter(f => f.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta função?')) return;
+    try {
+      setLoading(true);
+      await apiService.deleteFuncao(id);
       showToast('Função excluída', 'info');
+      const data = await apiService.getFuncoes();
+      setFuncoes(data || []);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -291,7 +311,7 @@ const FuncoesPage = () => {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={handleSave}>{editando ? 'Salvar' : 'Criar'}</button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={loading}>{editando ? 'Salvar' : 'Criar'}</button>
           </div>
         </div>
       </div>

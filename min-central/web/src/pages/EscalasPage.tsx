@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../hooks/useToast';
 import { useEscalas } from '../hooks/useEscalas';
+import { apiService } from '../services/api';
 import { formatDateBR, formatDateFull } from '../utils/dateUtils';
 import { ministryNames, ministryColors, dayNames } from '../utils/constants';
 import { Escala } from '../types';
@@ -16,6 +17,7 @@ const EscalasPage = () => {
   const [actionType, setActionType] = useState<'concluir' | 'justificar'>('concluir');
   const [comprovacao, setComprovacao] = useState('');
   const [justificativa, setJustificativa] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const { sunday } = getWeekDates(escalaWeekOffset);
 
@@ -27,7 +29,7 @@ const EscalasPage = () => {
     setModalOpen(true);
   };
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
     if (!selectedEscala) return;
     
     if (actionType === 'concluir') {
@@ -35,22 +37,33 @@ const EscalasPage = () => {
         showToast('Insira a comprovação', 'error');
         return;
       }
-      selectedEscala.status = 'concluido';
-      selectedEscala.comprovacao = comprovacao;
-      showToast('Função concluída com sucesso', 'success');
     } else {
       if (!justificativa) {
         showToast('Insira o motivo da justificativa', 'error');
         return;
       }
-      selectedEscala.status = 'justificado';
-      selectedEscala.justificativa = justificativa;
-      showToast('Justificativa registrada', 'info');
     }
-    
-    setEscalas(prev => prev.map(e => e.id === selectedEscala.id ? selectedEscala : e));
-    setModalOpen(false);
-    setSelectedEscala(null);
+
+    try {
+      setSaving(true);
+      const updates = actionType === 'concluir' 
+        ? { status: 'concluido', comprovacao }
+        : { status: 'justificado', justificativa };
+      
+      await apiService.updateEscala(selectedEscala.id, updates);
+      
+      // Recarregar escalas do backend
+      const data = await apiService.getEscalas();
+      setEscalas(data || []);
+      
+      showToast(actionType === 'concluir' ? 'Função concluída com sucesso' : 'Justificativa registrada', 'success');
+      setModalOpen(false);
+      setSelectedEscala(null);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getStatusDisplay = (status: string) => {
@@ -195,7 +208,6 @@ const EscalasPage = () => {
         </div>
       </div>
 
-      {/* Modal de Ação */}
       <div className={`modal-overlay ${modalOpen ? 'active' : ''}`} onClick={() => setModalOpen(false)}>
         <div className="modal" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
@@ -243,7 +255,9 @@ const EscalasPage = () => {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button>
-            <button className="btn btn-success" onClick={confirmAction}>Confirmar</button>
+            <button className="btn btn-success" onClick={confirmAction} disabled={saving}>
+              {saving ? 'Salvando...' : 'Confirmar'}
+            </button>
           </div>
         </div>
       </div>

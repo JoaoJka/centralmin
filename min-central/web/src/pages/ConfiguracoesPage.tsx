@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../hooks/useToast';
+import { apiService } from '../services/api';
 import { getCurrentCargo, podeAcessarConfig } from '../utils/auth';
 
 const ConfiguracoesPage = () => {
-  // SEGUNDA VERIFICAÇÃO — mesmo se alguém burlar o Route Guard
   const cargo = getCurrentCargo();
   if (!podeAcessarConfig(cargo)) {
     return (
@@ -28,10 +29,19 @@ const ConfiguracoesPage = () => {
 
   const { config, setConfig } = useData();
   const { showToast } = useToast();
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    setConfig({ ...config });
-    showToast('Configurações salvas', 'success');
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const updated = await apiService.updateConfig(config);
+      setConfig(updated);
+      showToast('Configurações salvas', 'success');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleConfig = (key: keyof typeof config, value: boolean | number | number[]) => {
@@ -146,11 +156,11 @@ const ConfiguracoesPage = () => {
       </div>
 
       <div className="config-save-bar">
-        <button className="btn btn-primary" onClick={handleSave}>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Salvar Configurações
+          {saving ? 'Salvando...' : 'Salvar Configurações'}
         </button>
       </div>
     </div>
