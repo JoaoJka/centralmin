@@ -1,18 +1,19 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { ministryNames } from '../utils/constants';
 
 interface SidebarProps {
   userNick: string;
   userCargo: string;
   isAdmin: boolean;
-  isConvidado: boolean;
-  onLogout: () => void;
+  isLeader: boolean;
 }
 
-const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: SidebarProps) => {
+const Sidebar = ({ userNick, userCargo, isAdmin, isLeader }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const [openMenus, setOpenMenus] = useState({
     escalas: true,
@@ -59,6 +60,12 @@ const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: Sideba
     </svg>
   );
 
+  const shieldIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+
   const logoutIcon = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -88,7 +95,7 @@ const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: Sideba
         <p className="sidebar-subtitle">Central Ministerial</p>
       </div>
 
-      {/* PERFIL DO USUÁRIO */}
+      {/* PERFIL DO USUÁRIO LOGADO */}
       <div style={{
         padding: '16px 20px',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -120,16 +127,16 @@ const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: Sideba
             {userNick || 'Usuário'}
           </div>
           <div style={{
-            color: isAdmin ? '#60a5fa' : isConvidado ? '#94a3b8' : '#64748b',
+            color: isLeader ? '#60a5fa' : isAdmin ? '#34d399' : '#64748b',
             fontSize: '11px',
             textTransform: 'capitalize'
           }}>
-            {cargoDisplay || 'Convidado'}
-            {isAdmin && ' (Admin)'}
+            {cargoDisplay || 'Membro'}
+            {isLeader && ' (Liderança)'}
           </div>
         </div>
         <button
-          onClick={onLogout}
+          onClick={logout}
           title="Sair"
           style={{
             background: 'none',
@@ -194,7 +201,7 @@ const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: Sideba
           </div>
         </div>
 
-        {/* ADMINISTRAÇÃO — SÓ MOSTRA SE FOR ADMIN */}
+        {/* ADMINISTRAÇÃO — SÓ MOSTRA SE FOR ADMIN (ministro+) */}
         {isAdmin && (
           <div className={`nav-group ${openMenus.administracao ? 'open' : ''}`}>
             <button className="nav-group-header" onClick={() => toggleMenu('administracao')}>
@@ -226,6 +233,16 @@ const Sidebar = ({ userNick, userCargo, isAdmin, isConvidado, onLogout }: Sideba
                 <span className="nav-link-dot" />
                 <span className="nav-link-text">Configurações</span>
               </button>
+              {/* APROVAÇÕES — SÓ LÍDER E VICE */}
+              {isLeader && (
+                <button
+                  className={`nav-link ${isActive('/aprovacoes') ? 'active' : ''}`}
+                  onClick={() => navigate('/aprovacoes')}
+                >
+                  <span className="nav-link-dot" />
+                  <span className="nav-link-text">Aprovações</span>
+                </button>
+              )}
             </div>
           </div>
         )}
