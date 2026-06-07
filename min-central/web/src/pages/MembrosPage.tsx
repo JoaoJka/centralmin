@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import { apiService } from '../services/api';
 import { ministryNames, ministryColors, roleLabels, modLabels, cargosSemMinisterio } from '../utils/constants';
 import { Membro } from '../types';
 
@@ -12,8 +13,25 @@ const MembrosPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Membro | null>(null);
   const [formData, setFormData] = useState({ nick: '', cargo: 'estagiario' as Membro['cargo'], ministry: 'financas', disponivel: true, modLevel: 0 });
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    carregarMembers();
+  }, []);
+
+  const carregarMembers = async () => {
+    setLoading(true);
+    try {
+      const data = await apiService.getMembers();
+      setMembers(data || []);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
     if (!formData.nick) {
       showToast('Digite o nick', 'error');
       return;
@@ -23,8 +41,7 @@ const MembrosPage = () => {
       return;
     }
 
-    const newMember: Membro = {
-      id: editando ? editando.id : Date.now(),
+    const memberData = {
       nick: formData.nick,
       cargo: formData.cargo,
       ministry: cargosSemMinisterio.includes(formData.cargo) ? '' : formData.ministry,
@@ -32,16 +49,21 @@ const MembrosPage = () => {
       modLevel: formData.modLevel
     };
 
-    if (editando) {
-      setMembers(prev => prev.map(m => m.id === editando.id ? newMember : m));
-      showToast('Membro atualizado', 'success');
-    } else {
-      setMembers(prev => [...prev, newMember]);
-      showToast('Membro adicionado', 'success');
+    try {
+      if (editando) {
+        await apiService.updateMember(editando.id, memberData);
+        showToast('Membro atualizado', 'success');
+      } else {
+        await apiService.createMember(memberData);
+        showToast('Membro adicionado', 'success');
+      }
+      await carregarMembers();
+      setModalOpen(false);
+      setEditando(null);
+      resetForm();
+    } catch (err: any) {
+      showToast(err.message, 'error');
     }
-    setModalOpen(false);
-    setEditando(null);
-    resetForm();
   };
 
   const handleEdit = (member: Membro) => {
@@ -56,10 +78,14 @@ const MembrosPage = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Tem certeza que deseja remover este membro?')) {
-      setMembers(prev => prev.filter(m => m.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!confirm('Tem certeza que deseja remover este membro?')) return;
+    try {
+      await apiService.deleteMember(id);
       showToast('Membro removido', 'info');
+      await carregarMembers();
+    } catch (err: any) {
+      showToast(err.message, 'error');
     }
   };
 
@@ -113,7 +139,9 @@ const MembrosPage = () => {
           <div>Disponível</div>
           <div style={{ textAlign: 'right' }}>Ações</div>
         </div>
-        {filteredMembers.map(m => (
+        {loading ? (
+          <div className="loading-state">Carregando...</div>
+        ) : filteredMembers.map(m => (
           <div key={m.id} className="members-table-row">
             <div>
               <img src={`https://www.habbo.com.br/habbo-imaging/avatarimage?user=${m.nick}&direction=4&head_direction=3&action=std&gesture=sml&size=m`} className="member-avatar" alt={m.nick} />
@@ -154,7 +182,7 @@ const MembrosPage = () => {
             </div>
           </div>
         ))}
-        {filteredMembers.length === 0 && (
+        {filteredMembers.length === 0 && !loading && (
           <div className="table-empty">
             <div className="table-empty-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

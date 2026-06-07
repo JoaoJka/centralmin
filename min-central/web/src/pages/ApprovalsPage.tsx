@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { apiService } from '../services/api';
 
 interface Pendente {
   fbKey: string;
@@ -12,23 +11,19 @@ interface Pendente {
 }
 
 const ApprovalsPage = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [pendentes, setPendentes] = useState<Pendente[]>([]);
   const [loading, setLoading] = useState(true);
   const [cargoSelecionado, setCargoSelecionado] = useState<Record<string, string>>({});
 
-  const podeAprovar = user && ['lider', 'vice'].includes(user.cargo);
+  const cargoNormalizado = user?.cargo?.toLowerCase() || '';
+  const podeAprovar = ['lider', 'vice'].includes(cargoNormalizado);
 
   const carregarPendentes = async () => {
-    if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/approve`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Erro ao carregar');
-      const data = await res.json();
+      const data = await apiService.getPendentes();
       setPendentes(data.pendentes || []);
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -38,22 +33,15 @@ const ApprovalsPage = () => {
   };
 
   useEffect(() => {
-    carregarPendentes();
-  }, [token]);
+    if (podeAprovar) {
+      carregarPendentes();
+    }
+  }, [podeAprovar]);
 
   const handleAprovar = async (uid: string) => {
     const cargo = cargoSelecionado[uid] || 'estagiario';
     try {
-      const res = await fetch(`${API_BASE}/auth/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ uid, acao: 'aprovar', cargo })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await apiService.approveCadastro(uid, cargo);
       showToast(data.mensagem, 'success');
       carregarPendentes();
     } catch (err: any) {
@@ -64,17 +52,8 @@ const ApprovalsPage = () => {
   const handleRejeitar = async (uid: string) => {
     if (!confirm('Tem certeza que deseja rejeitar este cadastro?')) return;
     try {
-      const res = await fetch(`${API_BASE}/auth/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ uid, acao: 'rejeitar' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      showToast('Cadastro rejeitado', 'info');
+      const data = await apiService.rejectCadastro(uid);
+      showToast(data.mensagem || 'Cadastro rejeitado', 'info');
       carregarPendentes();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -88,16 +67,7 @@ const ApprovalsPage = () => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ nick, novaSenha })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await apiService.resetPassword(nick, novaSenha);
       showToast(data.mensagem, 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -192,67 +162,17 @@ const ApprovalsPage = () => {
       )}
 
       <style>{`
-        .approvals-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .approval-card {
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 12px;
-          padding: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-        .approval-info {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-        .approval-avatar {
-          width: 48px;
-          height: 48px;
-          border-radius: 8px;
-        }
-        .approval-nick {
-          font-size: 16px;
-          font-weight: 600;
-          color: #e2e8f0;
-        }
-        .approval-meta {
-          font-size: 12px;
-          color: #64748b;
-          margin-top: 4px;
-        }
-        .approval-actions {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        .approval-actions .form-select {
-          width: 140px;
-          padding: 8px 12px;
-          font-size: 13px;
-        }
-        .empty-state {
-          text-align: center;
-          padding: 60px 20px;
-          color: #64748b;
-        }
-        .empty-icon svg {
-          width: 48px;
-          height: 48px;
-          margin-bottom: 16px;
-        }
-        .error-state {
-          text-align: center;
-          padding: 60px 20px;
-          color: #ef4444;
-        }
+        .approvals-list { display: flex; flex-direction: column; gap: 12px; }
+        .approval-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .approval-info { display: flex; align-items: center; gap: 16px; }
+        .approval-avatar { width: 48px; height: 48px; border-radius: 8px; }
+        .approval-nick { font-size: 16px; font-weight: 600; color: #e2e8f0; }
+        .approval-meta { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .approval-actions { display: flex; gap: 8px; align-items: center; }
+        .approval-actions .form-select { width: 140px; padding: 8px 12px; font-size: 13px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-icon svg { width: 48px; height: 48px; margin-bottom: 16px; }
+        .error-state { text-align: center; padding: 60px 20px; color: #ef4444; }
       `}</style>
     </div>
   );

@@ -2,7 +2,6 @@
 // API - Cliente HTTP para Netlify Functions
 // ============================================
 
-// URL DO SEU BACKEND NETLIFY - COLOQUE AQUI OU NO .env
 const API_BASE = import.meta.env.VITE_API_URL || 'https://mincentral-back.netlify.app/.netlify/functions';
 
 // ---------- CLIENTE HTTP BASE ----------
@@ -13,9 +12,8 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}, requireAuth
     ...((options.headers as Record<string, string>) || {})
   };
 
-  // Só adiciona Authorization se requireAuth for true
   if (requireAuth) {
-    const token = sessionStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token'); // CORRIGIDO: localStorage
     if (!token) {
       throw new Error('Não autenticado. Faça login.');
     }
@@ -30,7 +28,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}, requireAuth
   });
 
   if (response.status === 401 || response.status === 403) {
-    sessionStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_token'); // CORRIGIDO: localStorage
     window.location.href = '/';
     throw new Error('Sessão expirada. Faça login novamente.');
   }
@@ -45,10 +43,9 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}, requireAuth
   return response.json();
 }
 
-// ---------- AUTH (LOGIN/REGISTER/ME) ----------
+// ---------- AUTH ----------
 
 export const apiAuth = {
-  // LOGIN - não precisa de token
   login: async (nick: string, password: string) => {
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
@@ -64,7 +61,6 @@ export const apiAuth = {
     return response.json();
   },
 
-  // REGISTER - não precisa de token
   register: async (nick: string, codigo: string, senha: string, cargo?: string, ministry?: string) => {
     const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
@@ -80,10 +76,7 @@ export const apiAuth = {
     return response.json();
   },
 
-  // ME - precisa de token
   me: () => fetchAPI('auth/me', {}, true),
-  
-  // VALIDATE (alias para me)
   validate: () => fetchAPI('auth/me', {}, true),
 };
 
@@ -121,7 +114,7 @@ export const apiConfig = {
   update: (data: any) => fetchAPI('config', { method: 'PUT', body: JSON.stringify(data) }),
 };
 
-// ---------- APPROVE (APROVAÇÃO DE CADASTROS) ----------
+// ---------- APPROVE (CORRIGIDO) ----------
 
 export const apiApprove = {
   list: () => fetchAPI('approve'),
@@ -145,24 +138,21 @@ export const apiResetPassword = {
 };
 
 // ============================================
-// apiService - Compatibilidade com DataContext
+// apiService
 // ============================================
 
 export const apiService = {
-  // Auth
   login: (nick: string, password: string) => apiAuth.login(nick, password),
   register: (nick: string, codigo: string, senha: string, cargo?: string, ministry?: string) => 
     apiAuth.register(nick, codigo, senha, cargo, ministry),
   getMe: () => apiAuth.me(),
   validateAuth: () => apiAuth.validate(),
 
-  // Funções
   getFuncoes: () => apiFuncoes.list(),
   createFuncao: (data: any) => apiFuncoes.create(data),
   updateFuncao: (id: number, data: any) => apiFuncoes.update(id, data),
   deleteFuncao: (id: number) => apiFuncoes.delete(id),
 
-  // Escalas
   getEscalas: () => apiEscalas.list(),
   createEscala: (data: any) => apiEscalas.create(data),
   updateEscala: (id: string, data: any) => apiEscalas.update(id, data),
@@ -173,22 +163,18 @@ export const apiService = {
     }
   },
 
-  // Members
   getMembers: () => apiMembers.list(),
   createMember: (data: any) => apiMembers.create(data),
   updateMember: (id: number, data: any) => apiMembers.update(id, data),
   deleteMember: (id: number) => apiMembers.delete(id),
 
-  // Config
   getConfig: () => apiConfig.get(),
   updateConfig: (data: any) => apiConfig.update(data),
 
-  // Approve
   getPendentes: () => apiApprove.list(),
   approveCadastro: (uid: string, cargo?: string) => apiApprove.approve(uid, cargo),
   rejectCadastro: (uid: string) => apiApprove.reject(uid),
 
-  // Reset Password
   resetPassword: (nick: string, novaSenha: string) => apiResetPassword.reset(nick, novaSenha),
 };
 
