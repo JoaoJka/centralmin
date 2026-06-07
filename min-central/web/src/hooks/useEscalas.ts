@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useData } from '../contexts/DataContext';
 import { Escala } from '../types';
 
@@ -8,7 +8,19 @@ export const useEscalas = () => {
   const [escalaTab, setEscalaTab] = useState('todas');
   const [loading, setLoading] = useState(false);
   
-  const [rodizioIndex, setRodizioIndex] = useState<Record<string, number>>(() => {
+  // CORREÇÃO: Usar ref para evitar loop de dependências
+  const configRef = useRef(config);
+  const funcoesRef = useRef(funcoes);
+  const membersRef = useRef(members);
+  
+  // Atualizar refs sem causar re-render
+  useEffect(() => {
+    configRef.current = config;
+    funcoesRef.current = funcoes;
+    membersRef.current = members;
+  });
+  
+  const [rodizioIndex, setRodizioIndex] = useState<<Record<string, number>>(() => {
     const saved = localStorage.getItem('escala_rodizio_index');
     return saved ? JSON.parse(saved) : {};
   });
@@ -17,8 +29,10 @@ export const useEscalas = () => {
     localStorage.setItem('escala_rodizio_index', JSON.stringify(rodizioIndex));
   }, [rodizioIndex]);
 
-  const getResponsavelAutomatico = (ministry: string, nivel: string) => {
-    let candidatos = members.filter(m => 
+  const getResponsavelAutomatico = useCallback((ministry: string, nivel: string) => {
+    const currentMembers = membersRef.current;
+    
+    let candidatos = currentMembers.filter(m => 
       m.ministry === ministry && 
       m.cargo === nivel && 
       m.disponivel === true
@@ -26,14 +40,13 @@ export const useEscalas = () => {
     
     if (candidatos.length === 0) {
       const nivelOposto = nivel === 'ministro' ? 'estagiario' : 'ministro';
-      candidatos = members.filter(m => 
+      candidatos = currentMembers.filter(m => 
         m.ministry === ministry && 
         m.cargo === nivelOposto && 
         m.disponivel === true
       );
       
       if (candidatos.length === 0) {
-        console.warn(`Sem membros disponíveis para ${ministry} - ${nivel} (nem fallback)`);
         return null;
       }
     }
@@ -49,11 +62,12 @@ export const useEscalas = () => {
     setRodizioIndex(prev => ({ ...prev, [chaveRodizio]: proximoIndice }));
     
     return candidatos[proximoIndice].nick;
-  };
+  }, [rodizioIndex]);
 
-  const getWeekDates = (offset: number) => {
-    const mesConfig = config.mesReferencia !== undefined ? config.mesReferencia : new Date().getMonth();
-    const anoConfig = config.anoReferencia !== undefined ? config.anoReferencia : new Date().getFullYear();
+  const getWeekDates = useCallback((offset: number) => {
+    const currentConfig = configRef.current;
+    const mesConfig = currentConfig.mesReferencia !== undefined ? currentConfig.mesReferencia : new Date().getMonth();
+    const anoConfig = currentConfig.anoReferencia !== undefined ? currentConfig.anoReferencia : new Date().getFullYear();
     
     const primeiroDiaMes = new Date(anoConfig, mesConfig, 1);
     let diasParaPrimeiroDomingo = (7 - primeiroDiaMes.getDay()) % 7;
@@ -65,29 +79,34 @@ export const useEscalas = () => {
     saturday.setDate(sunday.getDate() + 6);
     
     return { sunday, saturday };
-  };
+  }, []);
 
-  const getMonthDates = () => {
-    const mesConfig = config.mesReferencia !== undefined ? config.mesReferencia : new Date().getMonth();
-    const anoConfig = config.anoReferencia !== undefined ? config.anoReferencia : new Date().getFullYear();
+  const getMonthDates = useCallback(() => {
+    const currentConfig = configRef.current;
+    const mesConfig = currentConfig.mesReferencia !== undefined ? currentConfig.mesReferencia : new Date().getMonth();
+    const anoConfig = currentConfig.anoReferencia !== undefined ? currentConfig.anoReferencia : new Date().getFullYear();
     const firstDay = new Date(anoConfig, mesConfig, 1);
     const lastDay = new Date(anoConfig, mesConfig + 1, 0);
     return { firstDay, lastDay, year: anoConfig, month: mesConfig };
-  };
+  }, []);
 
-  const generateEscalas = () => {
+  // CORREÇÃO: useCallback para evitar recriação da função
+  const generateEscalas = useCallback(() => {
+    const currentConfig = configRef.current;
+    const currentFuncoes = funcoesRef.current;
+    
     setLoading(true);
     
     const { sunday, saturday } = getWeekDates(escalaWeekOffset);
     const weekStart = new Date(sunday);
     const weekEnd = new Date(saturday);
     
-    const semanasAtivas = config.semanasAtivas || [1, 2, 3, 4];
+    const semanasAtivas = currentConfig.semanasAtivas || [1, 2, 3, 4];
     const semanaAtualNumero = escalaWeekOffset + 1;
     
     const novasEscalas: Escala[] = [];
     
-    funcoes.forEach(f => {
+    currentFuncoes.forEach(f => {
       if (f.tipo === 'semanal' && f.semanas) {
         f.semanas.forEach(s => {
           const { sunday: weekSunday } = getWeekDates(s.semana);
@@ -148,14 +167,16 @@ export const useEscalas = () => {
     
     setEscalas(novasEscalas);
     setLoading(false);
-  };
+  }, [escalaWeekOffset, getWeekDates, getMonthDates, getResponsavelAutomatico, setEscalas]);
 
+  // CORREÇÃO: Dependências simplificadas - só escuta mudanças reais
   useEffect(() => {
     generateEscalas();
-  }, [escalaWeekOffset, escalaTab, funcoes, members, config.mesReferencia, config.anoReferencia, config.semanasAtivas]);
+  }, [generateEscalas]);
 
   const changeWeek = (dir: number) => {
-    const semanasAtivas = config.semanasAtivas || [1, 2, 3, 4];
+    const currentConfig = configRef.current;
+    const semanasAtivas = currentConfig.semanasAtivas || [1, 2, 3, 4];
     const maxSemana = Math.max(...semanasAtivas);
     const minSemana = Math.min(...semanasAtivas);
     const novaSemana = escalaWeekOffset + dir;
@@ -167,7 +188,8 @@ export const useEscalas = () => {
   };
 
   const goToToday = () => {
-    const semanasAtivas = config.semanasAtivas || [1, 2, 3, 4];
+    const currentConfig = configRef.current;
+    const semanasAtivas = currentConfig.semanasAtivas || [1, 2, 3, 4];
     const primeiraSemana = Math.min(...semanasAtivas);
     setEscalaWeekOffset(primeiraSemana - 1);
   };
